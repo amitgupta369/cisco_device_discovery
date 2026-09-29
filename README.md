@@ -66,6 +66,8 @@ libssh build and controller crypto policy. Requires `ansible.netcommon` 5.1.0+.
 Before login, `ssh-audit` inspects the device's advertised SSH algorithms without
 credentials. Install the updated dependencies with `pip install -r requirements.txt`.
 All classification rules are in `playbooks/collect.yml`.
+The audit disables connection-rate testing and waits 10 seconds before login.
+For devices with longer SSH throttling windows, use `-e ssh_post_audit_delay=30`.
 
 | SSH class | Meaning | Default action |
 | --- | --- | --- |

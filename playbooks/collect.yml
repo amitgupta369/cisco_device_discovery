@@ -73,6 +73,7 @@
     discovery_resources: []
     # Compatibility labels, not hardware age or a full security assessment.
     ssh_allowed_classes: [modern]
+    ssh_post_audit_delay: 10
     ssh_modern_algorithms:
       kex: [curve25519-sha256, curve25519-sha256@libssh.org, ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521, diffie-hellman-group14-sha256, diffie-hellman-group16-sha512, diffie-hellman-group18-sha512, diffie-hellman-group-exchange-sha256, sntrup761x25519-sha512@openssh.com, mlkem768x25519-sha256]
       key: [ssh-ed25519, rsa-sha2-256, rsa-sha2-512, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521]
@@ -160,6 +161,8 @@
             argv:
               - ssh-audit
               - --json
+              # Discovery does not need a burst of test connections.
+              - --skip-rate-test
               - --timeout=10
               - "{{ ansible_host }}"
           delegate_to: localhost
@@ -256,6 +259,12 @@
     - name: Skip old or unclassified SSH devices before login
       ansible.builtin.meta: end_host
       when: ssh_assessment.classification not in ssh_allowed_classes
+
+    - name: Allow SSH service to settle after audit before login
+      ansible.builtin.wait_for:
+        timeout: "{{ ssh_post_audit_delay | int }}"
+      delegate_to: localhost
+      become: false
 
     - name: Gather structured IOS identity and optional resources
       cisco.ios.ios_facts:
