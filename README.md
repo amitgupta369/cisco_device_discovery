@@ -63,11 +63,29 @@ libssh build and controller crypto policy. Requires `ansible.netcommon` 5.1.0+.
 
 ## Output
 
+Before login, `ssh-audit` inspects the device's advertised SSH algorithms without
+credentials. Install the updated dependencies with `pip install -r requirements.txt`.
+All classification rules are in `playbooks/collect.yml`.
+
+| SSH class | Meaning | Default action |
+| --- | --- | --- |
+| `modern` | Each family offers a modern option (SHA-2/curve KEX, modern host signature, AES-CTR/GCM or ChaCha20, SHA-2 MAC or AEAD) | Collect |
+| `legacy` | At least one family needs SHA-1, `ssh-rsa`, or AES-CBC | Skip |
+| `very_old` | At least one family needs group1, DSA, 3DES/RC4, or obsolete MACs | Skip |
+| `unknown` | Scan failed or an algorithm family cannot be classified | Skip |
+
+Classification uses the best offered option per family, not simply the presence
+of an old algorithm. It describes SSH compatibility, not hardware age, the actual
+negotiated algorithms, or full security compliance. AEAD ciphers need no separate
+MAC. Skipped devices get JSON with the assessment and do not run login/show tasks.
+To permit legacy devices, set `ssh_allowed_classes: [modern, legacy]` in the
+playbook. Very old and unknown devices remain blocked.
+
 JSON files: `output/<store_type>/<site>/<hostname>.json`.
 Includes structured device facts and text output/status for each show command.
 CLI text is stored inside JSON, not parsed into individual policy fields.
 Command errors are recorded while collection continues; inspect `status` for
-`collected`, `partial`, or `unsupported`. See [sample output](sample_output/store-a-sw01.json).
+`collected`, `partial`, `skipped`, or `unsupported`. See [sample output](sample_output/store-a-sw01.json).
 
 Output includes running configuration and may contain secrets. Files use mode
 `0600`, are Git-ignored, and device output is hidden from Ansible console logs.

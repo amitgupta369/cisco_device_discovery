@@ -102,5 +102,30 @@
             "output": "Illustrative output omitted.",
             "error": null
         }
-    ]
+    ],
+    "ssh_assessment": {
+        "classification": "modern",
+        "family_classes": {
+            "kex": "modern",
+            "key": "modern",
+            "enc": "modern",
+            "mac": "modern"
+        },
+        "offered_algorithms": {
+            "kex": [
+                "curve25519-sha256"
+            ],
+            "key": [
+                "ssh-ed25519"
+            ],
+            "enc": [
+                "aes128-ctr"
+            ],
+            "mac": [
+                "hmac-sha2-256"
+            ]
+        },
+        "basis": "Best offered algorithm per family; weakest family determines class.",
+        "error": null
+    }
 }
