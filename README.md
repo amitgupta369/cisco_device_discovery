@@ -40,6 +40,25 @@ The same TACACS username/password is used for all input devices.
 Optional structured VLAN/interface facts can be enabled by editing
 `discovery_resources` in the playbook.
 
+## Older-device SSH compatibility
+
+Use the repo-local [ssh_config](ssh_config) explicitly with libssh.
+From the repo root on the Linux/WSL controller:
+
+```bash
+ansible-playbook playbooks/collect.yml -u YOUR_USERNAME --ask-pass \
+  -e "ansible_libssh_config_file=$PWD/ssh_config"
+```
+
+The file enables legacy KEX, RSA host keys, AES-CBC, and SHA-1 MACs for this run.
+Replace `Host *` with affected management IPs to narrow its scope. Host-key
+verification stays enabled; trusted keys must exist on the controller.
+OpenSSH `-o` flags in `ansible_ssh_common_args` do not configure libssh algorithms.
+Algorithm availability depends on the controller's libssh build and crypto policy.
+If negotiation still fails, inspect `facts_error` in the output JSON and check
+`ansible-galaxy collection list ansible.netcommon` and `pip show ansible-pylibssh`.
+The config-file option requires `ansible.netcommon` 5.1.0 or newer.
+
 ## Output
 
 JSON files: `output/<store_type>/<site>/<hostname>.json`.
