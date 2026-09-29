@@ -4,7 +4,23 @@
   gather_facts: false
   vars:
     csv_input: "{{ playbook_dir }}/../input/devices.csv"
+    discovery_root: "{{ playbook_dir | dirname }}"
   tasks:
+    - name: Create local known_hosts without replacing existing trusted keys
+      ansible.builtin.copy:
+        dest: "{{ discovery_root }}/known_hosts"
+        content: ""
+        force: false
+        mode: '0600'
+      become: false
+
+    - name: Render repo SSH config with an absolute known_hosts path
+      ansible.builtin.copy:
+        dest: "{{ discovery_root }}/.ssh_config.runtime"
+        content: "{{ lookup('ansible.builtin.file', discovery_root ~ '/ssh_config') | replace('UserKnownHostsFile ./known_hosts', 'UserKnownHostsFile ' ~ '\"' ~ discovery_root ~ '/known_hosts' ~ '\"') }}\n"
+        mode: '0600'
+      become: false
+
     - name: Read device CSV
       community.general.read_csv:
         path: "{{ csv_input }}"
@@ -37,6 +53,8 @@
         ansible_host: "{{ item.management_ip }}"
         ansible_connection: ansible.netcommon.network_cli
         ansible_network_cli_ssh_type: libssh
+        ansible_libssh_config_file: "{{ discovery_root }}/.ssh_config.runtime"
+        ansible_host_key_checking: true
         ansible_network_os: cisco.ios.ios
         device_type: "{{ (item.device_type | default('', true) | trim | upper) or 'IOS' }}"
         store_type: "{{ item.store_type }}"

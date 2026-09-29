@@ -1,7 +1,8 @@
-# Opt-in compatibility for legacy devices in the selected discovery run.
-# This file is used only when explicitly passed as ansible_libssh_config_file.
+# Legacy compatibility used by the discovery playbook.
+# The playbook renders UserKnownHostsFile as an absolute controller path.
 # Replace * with management IPs to restrict it to specific devices.
 Host *
+    UserKnownHostsFile ./known_hosts
     KexAlgorithms +diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1
     HostKeyAlgorithms +ssh-rsa
     Ciphers +aes128-cbc

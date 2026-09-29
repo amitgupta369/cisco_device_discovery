@@ -1,4 +1,4 @@
-﻿# Cisco Device Discovery
+# Cisco Device Discovery
 
 Read-only Ansible collection of Cisco IOS/IOS XE device information as JSON.
 All tasks and the 14 show commands are in `playbooks/collect.yml`; no roles.
@@ -40,24 +40,29 @@ The same TACACS username/password is used for all input devices.
 Optional structured VLAN/interface facts can be enabled by editing
 `discovery_resources` in the playbook.
 
-## Older-device SSH compatibility
+## SSH and local host keys
 
-Use the repo-local [ssh_config](ssh_config) explicitly with libssh.
-From the repo root on the Linux/WSL controller:
+The playbook uses repo-local `ssh_config` and `known_hosts` automatically.
+Legacy KEX, RSA host keys, AES-CBC, and SHA-1 MACs are enabled in `ssh_config`.
+It renders `.ssh_config.runtime` with an absolute host-key path for libssh.
+Local keys and runtime configuration are Git-ignored; existing keys are preserved.
+
+Before the first run, enroll each device from the repo root on Linux/WSL:
 
 ```bash
-ansible-playbook playbooks/collect.yml -u YOUR_USERNAME --ask-pass \
-  -e "ansible_libssh_config_file=$PWD/ssh_config"
+ssh -F "$PWD/ssh_config" -o UserKnownHostsFile="$PWD/known_hosts" \
+  -o StrictHostKeyChecking=ask -o BatchMode=no USERNAME@IPAddress
 ```
 
-The file enables legacy KEX, RSA host keys, AES-CBC, and SHA-1 MACs for this run.
-Replace `Host *` with affected management IPs to narrow its scope. Host-key
-verification stays enabled; trusted keys must exist on the controller.
-OpenSSH `-o` flags in `ansible_ssh_common_args` do not configure libssh algorithms.
-Algorithm availability depends on the controller's libssh build and crypto policy.
-If negotiation still fails, inspect `facts_error` in the output JSON and check
-`ansible-galaxy collection list ansible.netcommon` and `pip show ansible-pylibssh`.
-The config-file option requires `ansible.netcommon` 5.1.0 or newer.
+Use the exact `management_ip` value from your CSV (IP or hostname). Verify the
+prompted fingerprint against device records before accepting, then exit SSH.
+This stores the key locally. The playbook keeps strict verification enabled and
+will reject unknown or changed keys; it does not automatically trust devices.
+
+Run the normal playbook command above; no SSH config argument is needed.
+Do not pass the previous `ansible_libssh_config_file` override: the playbook now
+selects the rendered configuration. Algorithm support still depends on your
+libssh build and controller crypto policy. Requires `ansible.netcommon` 5.1.0+.
 
 ## Output
 

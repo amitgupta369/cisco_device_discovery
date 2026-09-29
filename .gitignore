@@ -5,3 +5,6 @@ input/
 *.retry
 __pycache__/
 .idea/
+known_hosts
+known_hosts.old
+.ssh_config.runtime
