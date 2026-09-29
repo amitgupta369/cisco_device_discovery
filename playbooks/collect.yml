@@ -54,6 +54,7 @@
         ansible_connection: ansible.netcommon.network_cli
         ansible_network_cli_ssh_type: libssh
         ansible_libssh_config_file: "{{ discovery_root }}/.ssh_config.runtime"
+        # Unknown keys are enrolled by [libssh_connection] in ansible.cfg.
         ansible_host_key_checking: true
         ansible_network_os: cisco.ios.ios
         device_type: "{{ (item.device_type | default('', true) | trim | upper) or 'IOS' }}"
@@ -207,3 +208,6 @@
       delegate_to: localhost
       become: false
       no_log: true
+
+    - name: Close SSH connection and persist newly accepted host keys
+      ansible.builtin.meta: reset_connection

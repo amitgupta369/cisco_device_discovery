@@ -5,7 +5,7 @@ All tasks and the 14 show commands are in `playbooks/collect.yml`; no roles.
 
 ## Setup
 
-Run from this folder on Linux/WSL with Python 3.12+ and trusted device SSH host keys.
+Run from this folder on Linux/WSL with Python 3.12+ and SSH access to devices.
 
 ```bash
 python3 -m venv .venv
@@ -47,17 +47,14 @@ Legacy KEX, RSA host keys, AES-CBC, and SHA-1 MACs are enabled in `ssh_config`.
 It renders `.ssh_config.runtime` with an absolute host-key path for libssh.
 Local keys and runtime configuration are Git-ignored; existing keys are preserved.
 
-Before the first run, enroll each device from the repo root on Linux/WSL:
+Unknown host keys are automatically accepted on first connection and saved to
+repo-local `known_hosts`. This is enabled by `host_key_auto_add = True` under
+`[libssh_connection]` in `ansible.cfg`. Existing-key verification stays enabled;
+changed keys are not automatically replaced. No manual SSH enrollment is needed.
 
-```bash
-ssh -F "$PWD/ssh_config" -o UserKnownHostsFile="$PWD/known_hosts" \
-  -o StrictHostKeyChecking=ask -o BatchMode=no USERNAME@IPAddress
-```
-
-Use the exact `management_ip` value from your CSV (IP or hostname). Verify the
-prompted fingerprint against device records before accepting, then exit SSH.
-This stores the key locally. The playbook keeps strict verification enabled and
-will reject unknown or changed keys; it does not automatically trust devices.
+Run from the repo root so Ansible loads this `ansible.cfg`. To require manual
+verification for new devices, set `host_key_auto_add = False` again. This setting
+controls Ansible/libssh; standalone `ssh` still uses strict checking in `ssh_config`.
 
 Run the normal playbook command above; no SSH config argument is needed.
 Do not pass the previous `ansible_libssh_config_file` override: the playbook now
