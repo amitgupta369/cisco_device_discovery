@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cisco discovery report</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#17263c;font:14px/1.5 system-ui,sans-serif}
+main{max-width:1500px;margin:auto;padding:32px}h1{font-size:28px;margin:0}p{color:#53647a}
+.cards{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.card{background:white;border:1px solid #dce3ec;border-radius:8px;padding:14px 22px;min-width:130px}
+.card strong{display:block;font-size:28px}.table-wrap{overflow-x:auto;background:white;border:1px solid #dce3ec;border-radius:8px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:12px;vertical-align:top;border-bottom:1px solid #e3e9f0}
+th{background:#eaf0f7;font-size:12px;text-transform:uppercase;letter-spacing:.03em}td{overflow-wrap:anywhere;min-width:100px}
+small{display:block;color:#53647a}.badge{display:inline-block;border-radius:4px;padding:2px 8px;background:#edf1f5;white-space:nowrap}
+.collected{background:#dff3e9;color:#12563b}.partial{background:#fff0cc;color:#795200}.skipped,.unsupported{background:#fce4e4;color:#8a3030}
+details{margin-top:8px}summary{cursor:pointer;color:#235b97}ul{padding-left:18px;min-width:240px}footer{margin-top:18px;color:#53647a}
+@media print{main{padding:0}.table-wrap{overflow:visible}body{background:white}th,td{padding:6px}}
+</style>
+</head>
+<body><main>
+<h1>Cisco discovery report</h1>
+<p>Generated 2026-09-29 14:25 UTC · Existing JSON records only</p>
+<div class="cards">
+<div class="card">Total records<strong>1</strong></div>
+
+<div class="card">Collected<strong>0</strong></div>
+
+<div class="card">Partial<strong>1</strong></div>
+
+<div class="card">Skipped<strong>0</strong></div>
+
+<div class="card">Unsupported<strong>0</strong></div>
+
+<div class="card">Other<strong>0</strong></div>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Device</th><th>Store / site</th><th>Hardware / software</th><th>SSH class</th><th>Collection</th><th>Commands</th><th>Captured (UTC)</th></tr></thead>
+<tbody>
+
+<tr>
+<td><strong>store-a-sw01</strong><small>192.0.2.11</small><small>Hostname: store-a-sw01</small></td>
+<td>type_a<small>STORE-A</small></td>
+<td>C9300-48P<small>Version: 17.9.5</small><small>Serial: EXAMPLE-SERIAL</small></td>
+<td>modern</td>
+<td><span class="badge partial">partial</span><small>Facts: collected</small></td>
+<td>
+
+13 / 14 collected
+<details><summary>Command statuses</summary><ul>
+
+<li>show version — collected</li>
+
+<li>show inventory — collected</li>
+
+<li>show running-config — collected</li>
+
+<li>show interfaces status — collected</li>
+
+<li>show ip interface brief — collected</li>
+
+<li>show vlan brief — collected</li>
+
+<li>show spanning-tree summary — collected</li>
+
+<li>show etherchannel summary — collected</li>
+
+<li>show cdp neighbors detail — collected</li>
+
+<li>show lldp neighbors detail — collected</li>
+
+<li>show license — unsupported</li>
+
+<li>show logging — collected</li>
+
+<li>show ntp associations — collected</li>
+
+<li>show snmp — collected</li>
+
+</ul></details>
+
+</td>
+<td>2026-09-29T00:00:00Z</td>
+</tr>
+
+</tbody></table></div>
+<footer>Command output, raw errors, and configurations are excluded. SSH class describes offered algorithms, not device age or compliance. Records may come from different runs; check capture times. Devices without JSON are not represented.</footer>
+</main></body></html>

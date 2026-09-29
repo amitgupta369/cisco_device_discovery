@@ -93,3 +93,16 @@ Command errors are recorded while collection continues; inspect `status` for
 
 Output includes running configuration and may contain secrets. Files use mode
 `0600`, are Git-ignored, and device output is hidden from Ansible console logs.
+
+## HTML report
+
+Generate a standalone summary from existing JSON files (no device connections):
+
+```bash
+ansible-playbook playbooks/report.yml
+```
+
+Open `output/report.html`. Includes device details, SSH class, collection status,
+and command names/statuses. Full command output and raw errors are excluded.
+To use another input folder, append `-e output_root=/absolute/path/to/output`.
+To choose the HTML destination, append `-e report_file=/absolute/path/report.html`.

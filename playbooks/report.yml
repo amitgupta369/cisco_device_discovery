@@ -1,0 +1,124 @@
+---
+- name: Generate HTML summary from existing discovery JSON
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    output_root: "{{ playbook_dir }}/../output"
+    report_file: "{{ output_root }}/report.html"
+  tasks:
+    - name: Find device JSON files
+      ansible.builtin.find:
+        paths: "{{ output_root }}"
+        patterns: '*.json'
+        recurse: true
+        file_type: file
+      register: discovery_files
+
+    - name: Require discovery output
+      ansible.builtin.assert:
+        that:
+          - discovery_files.matched | int > 0
+        fail_msg: "No JSON files found in {{ output_root }}. Run collect.yml first."
+
+    - name: Initialize report records
+      ansible.builtin.set_fact:
+        report_records: []
+
+    - name: Load only device summary fields
+      ansible.builtin.set_fact:
+        report_records: "{{ report_records + [summary] }}"
+      vars:
+        device: "{{ lookup('ansible.builtin.file', item.path) | from_json }}"
+        summary:
+          inventory_hostname: "{{ device.inventory_hostname | default('Unknown', true) }}"
+          hostname: "{{ device.hostname | default('—', true) }}"
+          management_ip: "{{ device.management_ip | default('—', true) }}"
+          site: "{{ device.site | default('—', true) }}"
+          store_type: "{{ device.store_type | default('—', true) }}"
+          model: "{{ device.model | default('—', true) }}"
+          version: "{{ device.version | default('—', true) }}"
+          serial_number: "{{ device.serial_number | default('—', true) }}"
+          status: "{{ device.status | default('unknown', true) }}"
+          collected_at: "{{ device.collected_at | default('—', true) }}"
+          ssh_class: "{{ (device.ssh_assessment | default({}, true)).classification | default('not assessed', true) }}"
+          facts_status: "{{ device.facts_status | default('not collected', true) }}"
+          commands_total: "{{ device.commands | default([], true) | length }}"
+          commands_ok: "{{ device.commands | default([], true) | selectattr('status', 'equalto', 'collected') | list | length }}"
+          command_names: "{{ device.commands | default([], true) | map(attribute='command') | list }}"
+          command_statuses: "{{ device.commands | default([], true) | map(attribute='status') | list }}"
+      loop: "{{ discovery_files.files | sort(attribute='path') }}"
+      # JSON can contain running configurations and secrets; never log input.
+      no_log: true
+
+    - name: Create report destination directory
+      ansible.builtin.file:
+        path: "{{ report_file | dirname }}"
+        state: directory
+        mode: '0700'
+
+    - name: Write standalone HTML summary
+      ansible.builtin.copy:
+        dest: "{{ report_file }}"
+        mode: '0600'
+        content: |
+          <!doctype html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Cisco discovery report</title>
+          <style>
+          *{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:#17263c;font:14px/1.5 system-ui,sans-serif}
+          main{max-width:1500px;margin:auto;padding:32px}h1{font-size:28px;margin:0}p{color:#53647a}
+          .cards{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}.card{background:white;border:1px solid #dce3ec;border-radius:8px;padding:14px 22px;min-width:130px}
+          .card strong{display:block;font-size:28px}.table-wrap{overflow-x:auto;background:white;border:1px solid #dce3ec;border-radius:8px}
+          table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:12px;vertical-align:top;border-bottom:1px solid #e3e9f0}
+          th{background:#eaf0f7;font-size:12px;text-transform:uppercase;letter-spacing:.03em}td{overflow-wrap:anywhere;min-width:100px}
+          small{display:block;color:#53647a}.badge{display:inline-block;border-radius:4px;padding:2px 8px;background:#edf1f5;white-space:nowrap}
+          .collected{background:#dff3e9;color:#12563b}.partial{background:#fff0cc;color:#795200}.skipped,.unsupported{background:#fce4e4;color:#8a3030}
+          details{margin-top:8px}summary{cursor:pointer;color:#235b97}ul{padding-left:18px;min-width:240px}footer{margin-top:18px;color:#53647a}
+          @media print{main{padding:0}.table-wrap{overflow:visible}body{background:white}th,td{padding:6px}}
+          </style>
+          </head>
+          <body><main>
+          <h1>Cisco discovery report</h1>
+          <p>Generated {{ now(utc=true, fmt='%Y-%m-%d %H:%M UTC') | e }} · Existing JSON records only</p>
+          <div class="cards">
+          <div class="card">Total records<strong>{{ report_records | length }}</strong></div>
+          {% for state in ['collected', 'partial', 'skipped', 'unsupported'] %}
+          <div class="card">{{ state | capitalize | e }}<strong>{{ report_records | selectattr('status', 'equalto', state) | list | length }}</strong></div>
+          {% endfor %}
+          <div class="card">Other<strong>{{ report_records | rejectattr('status', 'in', ['collected','partial','skipped','unsupported']) | list | length }}</strong></div>
+          </div>
+          <div class="table-wrap"><table>
+          <thead><tr><th>Device</th><th>Store / site</th><th>Hardware / software</th><th>SSH class</th><th>Collection</th><th>Commands</th><th>Captured (UTC)</th></tr></thead>
+          <tbody>
+          {% for d in report_records %}
+          <tr>
+          <td><strong>{{ d.inventory_hostname | e }}</strong><small>{{ d.management_ip | e }}</small><small>Hostname: {{ d.hostname | e }}</small></td>
+          <td>{{ d.store_type | e }}<small>{{ d.site | e }}</small></td>
+          <td>{{ d.model | e }}<small>Version: {{ d.version | e }}</small><small>Serial: {{ d.serial_number | e }}</small></td>
+          <td>{{ d.ssh_class | e }}</td>
+          <td><span class="badge {{ d.status if d.status in ['collected','partial','skipped','unsupported'] else '' }}">{{ d.status | e }}</span><small>Facts: {{ d.facts_status | e }}</small></td>
+          <td>
+          {% if d.commands_total | int > 0 %}
+          {{ d.commands_ok | e }} / {{ d.commands_total | e }} collected
+          <details><summary>Command statuses</summary><ul>
+          {% for name in d.command_names %}
+          <li>{{ name | e }} — {{ d.command_statuses[loop.index0] | e }}</li>
+          {% endfor %}
+          </ul></details>
+          {% else %}Not collected{% endif %}
+          </td>
+          <td>{{ d.collected_at | e }}</td>
+          </tr>
+          {% endfor %}
+          </tbody></table></div>
+          <footer>Command output, raw errors, and configurations are excluded. SSH class describes offered algorithms, not device age or compliance. Records may come from different runs; check capture times. Devices without JSON are not represented.</footer>
+          </main></body></html>
+
+    - name: Show report location
+      ansible.builtin.debug:
+        msg: "HTML report written to {{ report_file }}"
