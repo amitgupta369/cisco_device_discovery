@@ -37,6 +37,8 @@ ansible-playbook playbooks/collect.yml -u YOUR_USERNAME --ask-pass
 
 For enable mode, append `--become --become-method enable --ask-become-pass`.
 The same TACACS username/password is used for all input devices.
+Supply the username with `-u` and enter the TACACS password at `SSH password:`.
+Automatic SSH-key lookup is disabled in `ansible.cfg` for this password workflow.
 Optional structured VLAN/interface facts can be enabled by editing
 `discovery_resources` in the playbook.
 
