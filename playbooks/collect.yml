@@ -1,0 +1,191 @@
+---
+- name: Build discovery inventory
+  hosts: localhost
+  gather_facts: false
+  vars:
+    csv_input: "{{ playbook_dir }}/../input/devices.csv"
+  tasks:
+    - name: Read device CSV
+      community.general.read_csv:
+        path: "{{ csv_input }}"
+      register: csv_devices
+
+    - name: Validate nonempty inventory and unique hostnames
+      ansible.builtin.assert:
+        that:
+          - csv_devices.list | length > 0
+          - csv_devices.list | map(attribute='hostname') | unique | length == csv_devices.list | length
+        fail_msg: CSV must contain devices with unique hostnames.
+
+    - name: Validate device fields
+      ansible.builtin.assert:
+        that:
+          - item.hostname | default('') is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+          - item.management_ip | default('') | length > 0
+          - item.store_type | default('') in ['type_a', 'type_b', 'type_c']
+          - item.site | default('') is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
+          - item.hostname | default('') not in ['localhost', '127.0.0.1', '::1']
+        fail_msg: Invalid CSV row. Check the documented required fields.
+      loop: "{{ csv_devices.list }}"
+      loop_control:
+        label: "{{ item.hostname | default('missing hostname') }}"
+
+    - name: Add devices to runtime inventory
+      ansible.builtin.add_host:
+        name: "{{ item.hostname }}"
+        groups: discovery_targets
+        ansible_host: "{{ item.management_ip }}"
+        ansible_connection: ansible.netcommon.network_cli
+        ansible_network_cli_ssh_type: libssh
+        ansible_network_os: cisco.ios.ios
+        device_type: "{{ (item.device_type | default('', true) | trim | upper) or 'IOS' }}"
+        store_type: "{{ item.store_type }}"
+        site: "{{ item.site }}"
+      loop: "{{ csv_devices.list }}"
+      loop_control:
+        label: "{{ item.hostname }}"
+
+- name: Collect Cisco device information
+  hosts: discovery_targets
+  gather_facts: false
+  vars:
+    output_root: "{{ playbook_dir }}/../output"
+    # Optional structured resources: [vlans, interfaces, l2_interfaces, l3_interfaces, lag_interfaces]
+    discovery_resources: []
+    discovery_commands:
+      - show version
+      - show inventory
+      - show running-config
+      - show interfaces status
+      - show ip interface brief
+      - show vlan brief
+      - show spanning-tree summary
+      - show etherchannel summary
+      - show cdp neighbors detail
+      - show lldp neighbors detail
+      - show license
+      - show logging
+      - show ntp associations
+      - show snmp
+  tasks:
+    - name: Validate collection scope
+      ansible.builtin.assert:
+        that:
+          - discovery_resources is sequence and discovery_resources is not string and discovery_resources is not mapping
+          - discovery_resources | difference(['vlans', 'interfaces', 'l2_interfaces', 'l3_interfaces', 'lag_interfaces']) | length == 0
+          - ansible_network_os == 'cisco.ios.ios'
+        fail_msg: Choose supported VLAN or interface resources listed in discovery_resources above.
+
+    - name: Create controller output directory
+      ansible.builtin.file:
+        path: "{{ output_root }}/{{ store_type }}/{{ site }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+
+    - name: Remove previous device result before collection
+      ansible.builtin.file:
+        path: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        state: absent
+      delegate_to: localhost
+      become: false
+
+    - name: Record unsupported device without connecting
+      ansible.builtin.copy:
+        dest: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        content: "{{ unsupported_record | to_nice_json }}\n"
+        mode: '0600'
+      vars:
+        unsupported_record:
+          schema_version: 1
+          collected_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+          inventory_hostname: "{{ inventory_hostname }}"
+          management_ip: "{{ ansible_host }}"
+          store_type: "{{ store_type }}"
+          site: "{{ site }}"
+          device_type: "{{ device_type }}"
+          status: unsupported
+          reason: Only Cisco IOS/IOS XE collection is supported.
+      delegate_to: localhost
+      become: false
+      when: device_type != 'IOS'
+
+    - name: Skip unsupported device
+      ansible.builtin.meta: end_host
+      when: device_type != 'IOS'
+
+    - name: Gather structured IOS identity and optional resources
+      cisco.ios.ios_facts:
+        gather_subset: [min]
+        gather_network_resources: "{{ discovery_resources }}"
+      register: collected
+      ignore_errors: true
+      ignore_unreachable: true
+      no_log: true
+
+    - name: Initialize collected data
+      ansible.builtin.set_fact:
+        device_facts: "{{ collected.ansible_facts | default({}) }}"
+        command_records: []
+      no_log: true
+
+    - name: Run each show command independently
+      cisco.ios.ios_command:
+        commands: "{{ item }}"
+      loop: "{{ discovery_commands }}"
+      loop_control:
+        label: "{{ item }}"
+      register: command_results
+      changed_when: false
+      ignore_errors: true
+      ignore_unreachable: true
+      no_log: true
+
+    - name: Record command output and status
+      ansible.builtin.set_fact:
+        command_records: "{{ command_records + [command_record] }}"
+      vars:
+        command_text: "{{ (item.stdout | default([]) | join('\n')) ~ '\n' ~ (item.msg | default('')) }}"
+        unsupported_command: "{{ command_text is search('(?im)^ *%? *(invalid input|invalid command|unknown command|unrecognized command|ambiguous command|incomplete command|command not supported)') }}"
+        command_record:
+          command: "{{ item.item }}"
+          status: "{{ 'unsupported' if unsupported_command else ('error' if (item.failed | default(false) or item.unreachable | default(false) or item.stdout is not defined) else 'collected') }}"
+          output: "{{ item.stdout | default([]) | join('\n') }}"
+          error: "{{ item.msg | default(none) }}"
+      loop: "{{ command_results.results }}"
+      no_log: true
+
+    - name: Build device record
+      ansible.builtin.set_fact:
+        discovery_record:
+          schema_version: 1
+          status: "{{ 'collected' if (command_records | selectattr('status', 'ne', 'collected') | list | length == 0 and not (collected.failed | default(false)) and not (collected.unreachable | default(false))) else 'partial' }}"
+          facts_status: "{{ 'error' if (collected.failed | default(false) or collected.unreachable | default(false)) else 'collected' }}"
+          facts_error: "{{ collected.msg | default(none) }}"
+          commands: "{{ command_records }}"
+          collected_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+          inventory_hostname: "{{ inventory_hostname }}"
+          management_ip: "{{ ansible_host }}"
+          store_type: "{{ store_type }}"
+          site: "{{ site }}"
+          hostname: "{{ device_facts.ansible_net_hostname | default(none) }}"
+          network_os: "{{ ansible_network_os }}"
+          model: "{{ device_facts.ansible_net_model | default(none) }}"
+          version: "{{ device_facts.ansible_net_version | default(none) }}"
+          serial_number: "{{ device_facts.ansible_net_serialnum | default(none) }}"
+          stacked_models: "{{ device_facts.ansible_net_stacked_models | default([]) }}"
+          stacked_serial_numbers: "{{ device_facts.ansible_net_stacked_serialnums | default([]) }}"
+          requested_resources: "{{ discovery_resources }}"
+          resources: "{{ device_facts.ansible_network_resources | default({}) }}"
+
+      no_log: true
+
+    - name: Write JSON on controller
+      ansible.builtin.copy:
+        dest: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        content: "{{ discovery_record | to_nice_json }}\n"
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+      no_log: true

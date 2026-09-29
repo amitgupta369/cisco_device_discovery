@@ -1,0 +1,7 @@
+.venv/
+collections/
+output/
+input/
+*.retry
+__pycache__/
+.idea/

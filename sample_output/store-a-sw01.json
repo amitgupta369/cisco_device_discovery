@@ -1,0 +1,106 @@
+{
+    "schema_version": 1,
+    "status": "partial",
+    "collected_at": "2026-09-29T00:00:00Z",
+    "inventory_hostname": "store-a-sw01",
+    "management_ip": "192.0.2.11",
+    "store_type": "type_a",
+    "site": "STORE-A",
+    "hostname": "store-a-sw01",
+    "network_os": "cisco.ios.ios",
+    "model": "C9300-48P",
+    "version": "17.9.5",
+    "serial_number": "EXAMPLE-SERIAL",
+    "stacked_models": [],
+    "stacked_serial_numbers": [],
+    "requested_resources": [],
+    "resources": {},
+    "facts_status": "collected",
+    "facts_error": null,
+    "commands": [
+        {
+            "command": "show version",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show inventory",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show running-config",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show interfaces status",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show ip interface brief",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show vlan brief",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show spanning-tree summary",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show etherchannel summary",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show cdp neighbors detail",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show lldp neighbors detail",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show license",
+            "status": "unsupported",
+            "output": "",
+            "error": "% Invalid input detected at '^' marker."
+        },
+        {
+            "command": "show logging",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show ntp associations",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        },
+        {
+            "command": "show snmp",
+            "status": "collected",
+            "output": "Illustrative output omitted.",
+            "error": null
+        }
+    ]
+}
