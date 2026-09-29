@@ -101,7 +101,6 @@
       - show etherchannel summary
       - show cdp neighbors detail
       - show lldp neighbors detail
-      - show license
       - show logging
       - show ntp associations
       - show snmp
