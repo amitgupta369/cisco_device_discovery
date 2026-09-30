@@ -115,6 +115,21 @@ and command names/statuses. Full command output and raw errors are excluded.
 To use another input folder, append `-e output_root=/absolute/path/to/output`.
 To choose the HTML destination, append `-e report_file=/absolute/path/report.html`.
 
+Click an inventory hostname in the report to open its device JSON. To view on
+Windows, copy the entire `output` folder from RHEL, preserving this structure:
+
+```text
+output/
+  report.html
+  type_a/STORE-A/store-a-sw01.json
+  other/other/store-other-sw01.json
+```
+
+Links are relative, so the Windows drive/folder can differ. Copying only the HTML
+breaks the device links. With a custom `report_file`, preserve its position relative
+to the JSON folders too. Browsers may display or download JSON; linked files contain
+the full device output, unlike the HTML summary.
+
 ## CSV batches
 
 Split the input into batches of 100 devices, preserving headers and row order:

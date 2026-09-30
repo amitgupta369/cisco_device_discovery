@@ -32,6 +32,7 @@
       vars:
         device: "{{ lookup('ansible.builtin.file', item.path) | from_json }}"
         summary:
+          output_link: "{{ './' ~ (item.path | relpath(report_file | dirname) | urlencode) }}"
           inventory_hostname: "{{ device.inventory_hostname | default('Unknown', true) }}"
           hostname: "{{ device.hostname | default('—', true) }}"
           management_ip: "{{ device.management_ip | default('—', true) }}"
@@ -112,7 +113,7 @@
           <tbody>
           {% for d in report_records %}
           <tr>
-          <td>{{ d.inventory_hostname | e }}</td>
+          <td><a href="{{ d.output_link | e }}" title="Open device JSON output">{{ d.inventory_hostname | e }}</a></td>
           <td>{{ d.management_ip | e }}</td>
           <td>{{ d.hostname | e }}</td>
           <td>{{ d.store_type | e }}</td>
@@ -136,7 +137,7 @@
           </tr>
           {% endfor %}
           </tbody></table></div>
-          <footer>Command output, raw errors, and configurations are excluded. SSH class describes offered algorithms, not device age or compliance. Records may come from different runs; check capture times. Devices without JSON are not represented.</footer>
+          <footer>Click an inventory hostname to open its device JSON. Copy the report and JSON folders together, preserving their relative paths. Command output, raw errors, and configurations are excluded from this summary but may be present in linked JSON. SSH class describes offered algorithms, not device age or compliance. Records may come from different runs; check capture times. Devices without JSON are not represented.</footer>
           </main>
           <script>
           (() => {
