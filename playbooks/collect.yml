@@ -38,8 +38,8 @@
         that:
           - item.hostname | default('') is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
           - item.management_ip | default('') | length > 0
-          - item.store_type | default('') in ['type_a', 'type_b', 'type_c']
-          - item.site | default('') is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
+          - ((item.store_type | default('', true) | trim) or 'other') in ['type_a', 'type_b', 'type_c', 'other']
+          - ((item.site | default('', true) | trim) or 'other') is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
           - item.hostname | default('') not in ['localhost', '127.0.0.1', '::1']
         fail_msg: Invalid CSV row. Check the documented required fields.
       loop: "{{ csv_devices.list }}"
@@ -58,8 +58,8 @@
         ansible_host_key_checking: true
         ansible_network_os: cisco.ios.ios
         device_type: "{{ (item.device_type | default('', true) | trim | upper) or 'IOS' }}"
-        store_type: "{{ item.store_type }}"
-        site: "{{ item.site }}"
+        store_type: "{{ (item.store_type | default('', true) | trim) or 'other' }}"
+        site: "{{ (item.site | default('', true) | trim) or 'other' }}"
       loop: "{{ csv_devices.list }}"
       loop_control:
         label: "{{ item.hostname }}"

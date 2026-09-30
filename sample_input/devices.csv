@@ -2,3 +2,4 @@ hostname,management_ip,device_type,store_type,site
 store-a-sw01,192.0.2.11,,type_a,STORE-A
 store-b-sw01,192.0.2.12,IOS,type_b,STORE-B
 store-c-sw01,192.0.2.13,IOS,type_c,STORE-C
+store-other-sw01,192.0.2.14,IOS,,

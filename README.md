@@ -25,7 +25,9 @@ hostname,management_ip,device_type,store_type,site
 store-a-sw01,192.0.2.11,,type_a,STORE-A
 ```
 
-Store types: `type_a`, `type_b`, `type_c`. Blank or omitted `device_type` defaults
+Store types: `type_a`, `type_b`, `type_c`, `other`. Blank, whitespace-only, or
+missing `site` and `store_type` values each default to `other`; if both are blank,
+output is saved under `output/other/other/`. Blank or omitted `device_type` defaults
 to `IOS`. Label NX-OS devices `NXOS`; non-IOS types are recorded as `unsupported`
 and skipped. The OS is not detected automatically.
 
