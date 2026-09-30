@@ -36,7 +36,6 @@
     - name: Validate device fields
       ansible.builtin.assert:
         that:
-          - item.hostname | default('') is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
           - item.management_ip | default('') | length > 0
           - ((item.site | default('', true) | trim) or 'other') is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
           - item.hostname | default('') not in ['localhost', '127.0.0.1', '::1']
@@ -75,6 +74,8 @@
     # Compatibility labels, not hardware age or a full security assessment.
     ssh_allowed_classes: [modern]
     ssh_post_audit_delay: 10
+    ssh_audit_timeout: 90
+    ssh_audit_socket_timeout: 10
     ssh_modern_algorithms:
       kex: [curve25519-sha256, curve25519-sha256@libssh.org, ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521, diffie-hellman-group14-sha256, diffie-hellman-group16-sha512, diffie-hellman-group18-sha512, diffie-hellman-group-exchange-sha256, sntrup761x25519-sha512@openssh.com, mlkem768x25519-sha256]
       key: [ssh-ed25519, rsa-sha2-256, rsa-sha2-512, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521]
@@ -163,7 +164,7 @@
               - --json
               # Discovery does not need a burst of test connections.
               - --skip-rate-test
-              - --timeout=10
+              - "--timeout={{ ssh_audit_socket_timeout | int }}"
               - "{{ ansible_host }}"
           delegate_to: localhost
           become: false
@@ -171,7 +172,7 @@
           changed_when: false
           # ssh-audit returns nonzero for weak algorithms too; inspect the JSON.
           failed_when: false
-          async: 90
+          async: "{{ ssh_audit_timeout | int }}"
           poll: 5
 
         - name: Parse audit response
@@ -230,7 +231,9 @@
               family_classes: {}
               offered_algorithms: {}
               basis: SSH scan did not return usable algorithm data.
-              error: "{{ ssh_probe.stderr | default(ssh_probe.msg | default('Incomplete or invalid audit response')) }}"
+              error: "{{ ssh_probe.msg | default(ssh_probe.stderr | default(ssh_probe.stdout | default(ansible_failed_result.msg | default('Incomplete or invalid audit response'), true), true), true) }}"
+              audit_return_code: "{{ ssh_probe.rc | default(none) }}"
+              audit_timeout_seconds: "{{ ssh_audit_timeout | int }}"
 
     - name: Save skipped device SSH assessment
       ansible.builtin.copy:

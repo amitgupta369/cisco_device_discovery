@@ -72,13 +72,18 @@ credentials. Install the updated dependencies with `pip install -r requirements.
 All classification rules are in `playbooks/collect.yml`.
 The audit disables connection-rate testing and waits 10 seconds before login.
 For devices with longer SSH throttling windows, use `-e ssh_post_audit_delay=30`.
+The audit has a 90-second overall limit and a 10-second socket timeout. If an
+`ASYNC FAILED` message specifically reports a timeout, increase the overall limit
+with `-e ssh_audit_timeout=180`. Other async failures need their exact error checked.
+Failed audits are recorded as `unknown` and skipped; see `ssh_assessment.error`
+in the device JSON for details.
 
 | SSH class | Meaning | Default action |
 | --- | --- | --- |
-| `modern` | Each family offers a modern option (SHA-2/curve KEX, modern host signature, AES-CTR/GCM or ChaCha20, SHA-2 MAC or AEAD) | Collect |
-| `legacy` | At least one family needs SHA-1, `ssh-rsa`, or AES-CBC | Skip |
-| `very_old` | At least one family needs group1, DSA, 3DES/RC4, or obsolete MACs | Skip |
-| `unknown` | Scan failed or an algorithm family cannot be classified | Skip |
+| `modern` | The device offers up-to-date SSH connection methods recognized by our checks, so collection can proceed. | Collect |
+| `legacy` | The device needs an older SSH connection method, so collection is skipped by default. | Skip |
+| `very_old` | The device needs a severely outdated SSH connection method, so collection is blocked. | Skip |
+| `unknown` | The check could not determine the device's SSH compatibility, so collection is skipped. | Skip |
 
 Classification uses the best offered option per family, not simply the presence
 of an old algorithm. It describes SSH compatibility, not hardware age, the actual

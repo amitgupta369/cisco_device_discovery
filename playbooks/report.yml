@@ -108,11 +108,13 @@
           <p id="no-matches" hidden>No devices match the selected filters.</p>
           <p>Click a column heading to sort; click again to reverse. Commands sorts by successful command count.</p>
           <div class="table-wrap"><table id="device-report">
-          <thead><tr><th>Device</th><th>Store type</th><th>Site</th><th>Hardware model</th><th>Software version</th><th>Serial number</th><th>SSH class</th><th>Collection</th><th>Commands</th><th>Captured (UTC)</th></tr></thead>
+          <thead><tr><th>Inventory hostname</th><th>Management IP</th><th>Device hostname</th><th>Store type</th><th>Site</th><th>Hardware model</th><th>Software version</th><th>Serial number</th><th>SSH class</th><th>Collection</th><th>Commands</th><th>Captured (UTC)</th></tr></thead>
           <tbody>
           {% for d in report_records %}
           <tr>
-          <td data-sort="{{ d.inventory_hostname | e }}"><strong>{{ d.inventory_hostname | e }}</strong><small>{{ d.management_ip | e }}</small><small>Hostname: {{ d.hostname | e }}</small></td>
+          <td>{{ d.inventory_hostname | e }}</td>
+          <td>{{ d.management_ip | e }}</td>
+          <td>{{ d.hostname | e }}</td>
           <td>{{ d.store_type | e }}</td>
           <td>{{ d.site | e }}</td>
           <td>{{ d.model | e }}</td>
@@ -145,9 +147,9 @@
             const value = cell => (cell.dataset.sort ?? cell.textContent).trim();
             const missing = text => text === '' || text === '\u2014';
             const filters = [
-              {select: document.getElementById('filter-ssh'), column: 6},
-              {select: document.getElementById('filter-store'), column: 1},
-              {select: document.getElementById('filter-model'), column: 3}
+              {select: document.getElementById('filter-ssh'), column: 8},
+              {select: document.getElementById('filter-store'), column: 3},
+              {select: document.getElementById('filter-model'), column: 5}
             ];
             const applyFilters = () => {
               const rows = Array.from(body.rows);
