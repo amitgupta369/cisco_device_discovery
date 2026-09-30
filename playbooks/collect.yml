@@ -38,7 +38,6 @@
         that:
           - item.hostname | default('') is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
           - item.management_ip | default('') | length > 0
-          - ((item.store_type | default('', true) | trim) or 'other') in ['type_a', 'type_b', 'type_c', 'other']
           - ((item.site | default('', true) | trim) or 'other') is match('^[A-Za-z0-9][A-Za-z0-9_-]*$')
           - item.hostname | default('') not in ['localhost', '127.0.0.1', '::1']
         fail_msg: Invalid CSV row. Check the documented required fields.
@@ -69,6 +68,8 @@
   gather_facts: false
   vars:
     output_root: "{{ playbook_dir }}/../output"
+    # Preserve the CSV label in JSON; encode only its directory component.
+    store_type_path: "{{ store_type | urlencode | replace('/', '%2F') | replace('.', '%2E') }}"
     # Optional structured resources: [vlans, interfaces, l2_interfaces, l3_interfaces, lag_interfaces]
     discovery_resources: []
     # Compatibility labels, not hardware age or a full security assessment.
@@ -116,7 +117,7 @@
 
     - name: Create controller output directory
       ansible.builtin.file:
-        path: "{{ output_root }}/{{ store_type }}/{{ site }}"
+        path: "{{ output_root }}/{{ store_type_path }}/{{ site }}"
         state: directory
         mode: '0700'
       delegate_to: localhost
@@ -124,14 +125,14 @@
 
     - name: Remove previous device result before collection
       ansible.builtin.file:
-        path: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        path: "{{ output_root }}/{{ store_type_path }}/{{ site }}/{{ inventory_hostname }}.json"
         state: absent
       delegate_to: localhost
       become: false
 
     - name: Record unsupported device without connecting
       ansible.builtin.copy:
-        dest: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        dest: "{{ output_root }}/{{ store_type_path }}/{{ site }}/{{ inventory_hostname }}.json"
         content: "{{ unsupported_record | to_nice_json }}\n"
         mode: '0600'
       vars:
@@ -233,7 +234,7 @@
 
     - name: Save skipped device SSH assessment
       ansible.builtin.copy:
-        dest: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        dest: "{{ output_root }}/{{ store_type_path }}/{{ site }}/{{ inventory_hostname }}.json"
         content: "{{ skipped_record | to_nice_json }}\n"
         mode: '0600'
       vars:
@@ -334,7 +335,7 @@
 
     - name: Write JSON on controller
       ansible.builtin.copy:
-        dest: "{{ output_root }}/{{ store_type }}/{{ site }}/{{ inventory_hostname }}.json"
+        dest: "{{ output_root }}/{{ store_type_path }}/{{ site }}/{{ inventory_hostname }}.json"
         content: "{{ discovery_record | to_nice_json }}\n"
         mode: '0600'
       delegate_to: localhost

@@ -25,7 +25,7 @@ hostname,management_ip,device_type,store_type,site
 store-a-sw01,192.0.2.11,,type_a,STORE-A
 ```
 
-Store types: `type_a`, `type_b`, `type_c`, `other`. Blank, whitespace-only, or
+`store_type` accepts any value; there is no allowed-value validation. Blank, whitespace-only, or
 missing `site` and `store_type` values each default to `other`; if both are blank,
 output is saved under `output/other/other/`. Blank or omitted `device_type` defaults
 to `IOS`. Label NX-OS devices `NXOS`; non-IOS types are recorded as `unsupported`
@@ -87,7 +87,8 @@ MAC. Skipped devices get JSON with the assessment and do not run login/show task
 To permit legacy devices, set `ssh_allowed_classes: [modern, legacy]` in the
 playbook. Very old and unknown devices remain blocked.
 
-JSON files: `output/<store_type>/<site>/<hostname>.json`.
+JSON files: `output/<store_type>/<site>/<hostname>.json`. Special characters in
+store-type folder names are URL-encoded; JSON and HTML retain the trimmed CSV label.
 Includes structured device facts and text output/status for each show command.
 CLI text is stored inside JSON, not parsed into individual policy fields.
 Command errors are recorded while collection continues; inspect `status` for
@@ -108,3 +109,22 @@ Open `output/report.html`. Includes device details, SSH class, collection status
 and command names/statuses. Full command output and raw errors are excluded.
 To use another input folder, append `-e output_root=/absolute/path/to/output`.
 To choose the HTML destination, append `-e report_file=/absolute/path/report.html`.
+
+## CSV batches
+
+Split the input into batches of 100 devices, preserving headers and row order:
+
+```bash
+python3 scripts/split_csv.py input/devices.csv --batch-size 100 --output-dir input/batches
+```
+
+Run one batch using the existing playbook:
+
+```bash
+ansible-playbook playbooks/collect.yml -u agupta10 --ask-pass --forks 10 \
+  -e "csv_input=$PWD/input/batches/batch_001.csv"
+```
+
+The script assumes valid CSV input and a positive batch size. It only splits CSV;
+it does not execute batches. Use a new output directory for each run.
+The final batch may contain fewer devices.
