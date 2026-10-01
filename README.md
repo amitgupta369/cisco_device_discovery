@@ -191,3 +191,35 @@ and `results.json`. Use `-e connectivity_output=/path/to/run` to retain separate
 runs. Copy the standalone HTML to Windows to view it. Results show SSH class,
 success/failure, a sanitized reason, and configured algorithms, without credentials
 or SSH transcripts. Configured algorithms are not proof of the negotiated algorithm.
+
+## Paramiko comparison test
+
+This separate playbook tests the same CSV using `network_cli` with Paramiko.
+It leaves the libssh playbook and system crypto policy unchanged. Install Paramiko
+in the Python environment that runs Ansible, then run from the repository root:
+
+```bash
+python -m pip install "paramiko>=3.5.1,<4"
+ANSIBLE_CONFIG="$PWD/ansible-paramiko.cfg" ansible-playbook \
+  playbooks/ssh_connectivity_paramiko.yml -u agupta10 --ask-pass \
+  -e "csv_input=$PWD/input/devices.csv"
+```
+
+Start with a one-device CSV. Reports are written to
+`paramiko_connectivity_output/report.html` and `results.json`.
+Success requires login and an IOS CLI prompt. The assessment is informational:
+Paramiko uses its own algorithm defaults, not the generated libssh configurations.
+Legacy and very old devices are attempted, but unavailable algorithms still fail.
+
+Unlike the libssh test, the native Paramiko plugin uses the controller user's
+`~/.ssh/known_hosts`, not the repo-local file. The separate config accepts new keys
+and retains host-key checking; changed keys fail. Tests are sequential.
+
+Use a separate test virtual environment if this would downgrade an installed Paramiko.
+The 3.x constraint retains DSA support for very old devices; it does not guarantee
+compatibility with every legacy cipher. Do not downgrade the system installation. Paramiko support is deprecated
+and depends on your installed Ansible/ansible.netcommon versions. If the connection
+plugin is missing, use a separate virtual environment with a compatible Ansible
+release rather than downgrading the working collection environment. Older Paramiko
+is not a general fix for RHEL crypto restrictions. Devices offering only `ssh-dss`
+need special consideration because Paramiko 4 removed DSA support.

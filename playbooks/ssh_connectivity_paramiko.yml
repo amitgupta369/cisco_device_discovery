@@ -1,0 +1,170 @@
+---
+- name: Assess SSH compatibility and prepare paramiko connections
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    csv_input: "{{ playbook_dir }}/../input/devices.csv"
+    connectivity_output: "{{ playbook_dir }}/../paramiko_connectivity_output"
+    assessment_root: "{{ playbook_dir }}/../output"
+    reuse_assessment: false
+    ssh_login_timeout: 30
+    ssh_scan_timeout: 90
+    ssh_scan_delay: 10
+    # Ranked preferences: try modern options before legacy or very old options.
+    modern:
+      kex: [mlkem768x25519-sha256, sntrup761x25519-sha512@openssh.com, curve25519-sha256, curve25519-sha256@paramiko.org, ecdh-sha2-nistp256, ecdh-sha2-nistp384, ecdh-sha2-nistp521, diffie-hellman-group16-sha512, diffie-hellman-group18-sha512, diffie-hellman-group14-sha256, diffie-hellman-group-exchange-sha256]
+      key: [ssh-ed25519, rsa-sha2-512, rsa-sha2-256, ecdsa-sha2-nistp256, ecdsa-sha2-nistp384, ecdsa-sha2-nistp521]
+      enc: [aes256-gcm@openssh.com, aes128-gcm@openssh.com, chacha20-poly1305@openssh.com, aes256-ctr, aes192-ctr, aes128-ctr]
+      mac: [hmac-sha2-512-etm@openssh.com, hmac-sha2-256-etm@openssh.com, umac-128-etm@openssh.com, hmac-sha2-512, hmac-sha2-256]
+    legacy:
+      kex: [diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha1]
+      key: [ssh-rsa]
+      enc: [aes256-cbc, aes192-cbc, aes128-cbc]
+      mac: [hmac-sha1-etm@openssh.com, hmac-sha1]
+    very_old:
+      kex: [diffie-hellman-group1-sha1]
+      key: [ssh-dss]
+      enc: [3des-cbc, blowfish-cbc, cast128-cbc, arcfour256, arcfour128, arcfour]
+      mac: [hmac-sha1-96, hmac-md5, hmac-md5-96]
+
+  tasks:
+    - name: Check Paramiko is available in the Ansible Python environment
+      ansible.builtin.command:
+        argv: ["{{ ansible_playbook_python }}", -c, "import paramiko; print(paramiko.__version__)"]
+      changed_when: false
+
+    - name: Read device CSV
+      community.general.read_csv:
+        path: "{{ csv_input }}"
+      register: connectivity_csv
+
+    - name: Remember absolute report paths
+      ansible.builtin.set_fact:
+        connectivity_report_root: "{{ connectivity_output | realpath }}"
+
+    - name: Prepare connectivity output
+      ansible.builtin.file:
+        path: "{{ connectivity_report_root }}"
+        state: directory
+        mode: '0700'
+
+    - name: Assess each device and rank offered algorithms
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ playbook_dir }}/../scripts/ssh_assessment.py"
+        stdin: "{{ test_payload | to_json }}"
+      vars:
+        test_payload:
+          device: "{{ item }}"
+          assessment_root: "{{ assessment_root }}"
+          reuse_assessment: "{{ reuse_assessment | bool }}"
+          scan_timeout: "{{ ssh_scan_timeout | int }}"
+          scan_delay: "{{ ssh_scan_delay | int }}"
+          rules: {modern: "{{ modern }}", legacy: "{{ legacy }}", very_old: "{{ very_old }}"}
+      loop: "{{ connectivity_csv.list }}"
+      register: connection_checks
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Initialize assessment summary
+      ansible.builtin.set_fact:
+        connectivity_records: []
+
+    - name: Collect assessment results
+      ansible.builtin.set_fact:
+        connectivity_records: "{{ connectivity_records + [result_record] }}"
+      vars:
+        result_record: "{{ (item.stdout | from_json) if item.rc == 0 else {'inventory_hostname': item.item.hostname, 'management_ip': item.item.management_ip, 'site': item.item.site | default('other', true), 'store_type': item.item.store_type | default('other', true), 'status': 'failure', 'reason': 'Controller test process failed; check dependencies', 'login_attempted': false, 'ssh_assessment': {'classification': 'unknown'}, 'ssh_options': {}, 'assessment_source': 'unavailable', 'checked_at': ''} }}"
+      loop: "{{ connection_checks.results }}"
+      no_log: true
+
+    - name: Add devices to the paramiko test inventory
+      ansible.builtin.add_host:
+        name: "{{ item.inventory_hostname }}"
+        groups: paramiko_connectivity_targets
+        ansible_host: "{{ item.management_ip }}"
+        ansible_connection: ansible.netcommon.network_cli
+        ansible_network_os: cisco.ios.ios
+        ansible_network_cli_ssh_type: paramiko
+        ansible_network_cli_retries: 1
+        ansible_connect_timeout: "{{ ssh_login_timeout | int }}"
+        ansible_command_timeout: "{{ ssh_login_timeout | int }}"
+        ansible_host_key_checking: true
+        ansible_persistent_log_messages: false
+        connectivity_assessment: "{{ item }}"
+      loop: "{{ connectivity_records }}"
+      no_log: true
+
+- name: Test IOS CLI access using paramiko
+  hosts: paramiko_connectivity_targets
+  gather_facts: false
+  become: false
+  # Serialize writes to the shared known_hosts file and avoid login bursts.
+  serial: 1
+  tasks:
+    - name: Open the IOS CLI and check its prompt
+      ansible.netcommon.cli_command:
+        command: "\n"
+      register: connectivity_login
+      changed_when: false
+      ignore_errors: true
+      ignore_unreachable: true
+      no_log: true
+
+    - name: Record a sanitized connectivity result
+      ansible.builtin.set_fact:
+        connectivity_result: "{{ connectivity_assessment | combine({'status': 'failure' if login_failed else 'success', 'reason': login_reason | trim, 'login_attempted': true, 'backend': 'paramiko', 'checked_at': now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ')}) }}"
+      vars:
+        login_failed: "{{ (connectivity_login.failed | default(false)) or (connectivity_login.unreachable | default(false)) }}"
+        login_message: "{{ connectivity_login.msg | default('') | lower }}"
+        login_reason: >-
+          {% if not login_failed %}SSH login and IOS CLI prompt succeeded
+          {% elif 'known host' in login_message or 'host key' in login_message or 'hostkey' in login_message %}Host-key verification or negotiation failed; check the saved key and host-key algorithms
+          {% elif 'auth' in login_message or 'access denied' in login_message or 'password' in login_message %}Authentication failed; check credentials and device authentication policy
+          {% elif 'kex' in login_message or 'algorithm' in login_message or 'cipher' in login_message %}Algorithm negotiation failed; paramiko or controller crypto policy may not support the offered algorithms
+          {% elif 'timed out' in login_message or 'timeout' in login_message %}SSH login or IOS CLI prompt timed out
+          {% elif 'reset' in login_message or 'refused' in login_message or 'closed' in login_message %}Connection reset, refused, or closed by peer
+          {% else %}SSH connection or IOS CLI initialization failed
+          {% endif %}
+      no_log: true
+
+    - name: Close the persistent connection
+      ansible.builtin.meta: reset_connection
+
+- name: Write the paramiko connectivity report
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    connectivity_output: "{{ connectivity_report_root }}"
+  tasks:
+    - name: Assemble all device outcomes
+      ansible.builtin.set_fact:
+        final_connectivity_records: "{{ final_connectivity_records | default([]) + [hostvars[item.inventory_hostname].connectivity_result | default(item | combine({'status': 'failure', 'reason': 'Connection test did not complete', 'backend': 'paramiko'}))] }}"
+      loop: "{{ connectivity_records }}"
+      no_log: true
+
+    - name: Set report records
+      ansible.builtin.set_fact:
+        connectivity_records: "{{ final_connectivity_records }}"
+
+    - name: Save connection results without credentials or SSH transcripts
+      ansible.builtin.copy:
+        dest: "{{ connectivity_output }}/results.json"
+        content: "{{ connectivity_records | to_nice_json }}\n"
+        mode: '0600'
+
+    - name: Write standalone SSH connectivity HTML report
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/ssh_connectivity_paramiko_report.html.j2"
+        dest: "{{ connectivity_output }}/report.html"
+        mode: '0600'
+
+    - name: Show connectivity report location
+      ansible.builtin.debug:
+        msg: "SSH report: {{ connectivity_output }}/report.html"
