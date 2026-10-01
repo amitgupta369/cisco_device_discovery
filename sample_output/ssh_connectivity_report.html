@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SSH connectivity report</title>
+<style>
+body{font:14px/1.5 system-ui,sans-serif;background:#f3f6fa;color:#17263c;margin:30px}
+h1{margin-bottom:6px}.wrap{overflow:auto;background:white}table{border-collapse:collapse;width:100%}
+th,td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid #dde4ed}
+th{background:#e4ecf6}.success{color:#14633c;font-weight:bold}.failure{color:#a12828;font-weight:bold}
+small{display:block}code{overflow-wrap:anywhere}summary{cursor:pointer}
+</style></head><body><h1>SSH connectivity report</h1>
+<p>3 devices Â·
+2 successful Â·
+1 failed</p>
+<p>Success means libssh login and the IOS CLI prompt check completed. Ansible may send terminal setup commands; the discovery command list is not run.</p>
+<div class="wrap"><table><thead><tr><th>Inventory hostname</th><th>Management IP</th><th>Store type</th><th>Site</th><th>SSH class</th><th>Result</th><th>Details</th><th>Checked (UTC)</th></tr></thead><tbody>
+
+<tr><td>example-modern</td><td>192.0.2.11</td>
+<td>Example store</td><td>Example site</td><td>modern</td>
+<td class="success">success</td>
+<td>Illustrative result; not a device test<small>Login attempted: True</small>
+<small>Assessment: illustrative</small>
+
+<details><summary>Assessed SSH options configured for libssh</summary>
+<div><strong>KexAlgorithms</strong>: <code>mlkem768x25519-sha256,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256</code></div>
+<div><strong>HostKeyAlgorithms</strong>: <code>ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521</code></div>
+<div><strong>Ciphers</strong>: <code>aes256-gcm@openssh.com,aes128-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr</code></div>
+<div><strong>MACs</strong>: <code>hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256</code></div>
+
+</details></td><td>Illustrative only</td></tr>
+
+<tr><td>example-legacy</td><td>192.0.2.12</td>
+<td>Example store</td><td>Example site</td><td>legacy</td>
+<td class="success">success</td>
+<td>Illustrative result; not a device test<small>Login attempted: True</small>
+<small>Assessment: illustrative</small>
+
+<details><summary>Assessed SSH options configured for libssh</summary>
+<div><strong>KexAlgorithms</strong>: <code>diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1</code></div>
+<div><strong>HostKeyAlgorithms</strong>: <code>ssh-rsa</code></div>
+<div><strong>Ciphers</strong>: <code>aes256-cbc,aes192-cbc,aes128-cbc</code></div>
+<div><strong>MACs</strong>: <code>hmac-sha1-etm@openssh.com,hmac-sha1</code></div>
+
+</details></td><td>Illustrative only</td></tr>
+
+<tr><td>example-very_old</td><td>192.0.2.13</td>
+<td>Example store</td><td>Example site</td><td>very_old</td>
+<td class="failure">failure</td>
+<td>Illustrative result; not a device test<small>Login attempted: True</small>
+<small>Assessment: illustrative</small>
+
+<details><summary>Assessed SSH options configured for libssh</summary>
+<div><strong>KexAlgorithms</strong>: <code>diffie-hellman-group1-sha1</code></div>
+<div><strong>HostKeyAlgorithms</strong>: <code>ssh-dss</code></div>
+<div><strong>Ciphers</strong>: <code>3des-cbc,blowfish-cbc,cast128-cbc,arcfour256,arcfour128,arcfour</code></div>
+<div><strong>MACs</strong>: <code>hmac-sha1-96,hmac-md5,hmac-md5-96</code></div>
+
+</details></td><td>Illustrative only</td></tr>
+
+</tbody></table></div><p>Classes describe SSH compatibility, not hardware age. Options shown are permitted choices, not proof of which algorithm was negotiated.</p>
+</body></html>

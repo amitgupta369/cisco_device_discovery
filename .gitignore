@@ -1,6 +1,7 @@
 .venv/
 collections/
 output/
+connectivity_output/
 input/
 *.retry
 __pycache__/

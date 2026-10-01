@@ -1,0 +1,30 @@
+#jinja2: trim_blocks: False
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SSH connectivity report</title>
+<style>
+body{font:14px/1.5 system-ui,sans-serif;background:#f3f6fa;color:#17263c;margin:30px}
+h1{margin-bottom:6px}.wrap{overflow:auto;background:white}table{border-collapse:collapse;width:100%}
+th,td{padding:12px;text-align:left;vertical-align:top;border-bottom:1px solid #dde4ed}
+th{background:#e4ecf6}.success{color:#14633c;font-weight:bold}.failure{color:#a12828;font-weight:bold}
+small{display:block}code{overflow-wrap:anywhere}summary{cursor:pointer}
+</style></head><body><h1>SSH connectivity report</h1>
+<p>{{ connectivity_records | length }} devices ·
+{{ connectivity_records | selectattr('status','equalto','success') | list | length }} successful ·
+{{ connectivity_records | selectattr('status','equalto','failure') | list | length }} failed</p>
+<p>Success means libssh login and the IOS CLI prompt check completed. Ansible may send terminal setup commands; the discovery command list is not run.</p>
+<div class="wrap"><table><thead><tr><th>Inventory hostname</th><th>Management IP</th><th>Store type</th><th>Site</th><th>SSH class</th><th>Result</th><th>Details</th><th>Checked (UTC)</th></tr></thead><tbody>
+{% for r in connectivity_records %}
+<tr><td>{{ r.inventory_hostname | e }}</td><td>{{ r.management_ip | e }}</td>
+<td>{{ r.store_type | e }}</td><td>{{ r.site | e }}</td><td>{{ r.ssh_assessment.classification | e }}</td>
+<td class="{{ 'success' if r.status == 'success' else 'failure' }}">{{ r.status | e }}</td>
+<td>{{ r.reason | e }}<small>Login attempted: {{ r.login_attempted | e }}</small>
+<small>Assessment: {{ r.assessment_source | e }}</small>
+{% if r.ssh_assessment.error | default('') %}<small>{{ r.ssh_assessment.error | e }}</small>{% endif %}
+<details><summary>Assessed SSH options configured for libssh</summary>
+{% for name,value in r.ssh_options.items() %}<div><strong>{{ name | e }}</strong>: <code>{{ value | e }}</code></div>
+{% else %}<div>Libssh defaults (assessment unavailable).</div>{% endfor %}
+</details></td><td>{{ r.checked_at | e }}</td></tr>
+{% endfor %}
+</tbody></table></div><p>Classes describe SSH compatibility, not hardware age. Options shown are permitted choices, not proof of which algorithm was negotiated.</p>
+</body></html>

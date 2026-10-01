@@ -148,3 +148,46 @@ ansible-playbook playbooks/collect.yml -u agupta10 --ask-pass --forks 10 \
 The script assumes valid CSV input and a positive batch size. It only splits CSV;
 it does not execute batches. Use a new output directory for each run.
 The final batch may contain fewer devices.
+
+## Separate SSH connectivity test
+
+Tests modern, legacy, and very old Cisco IOS devices using `network_cli` with
+libssh, independently of `collect.yml`. Run from the repo root on the Linux controller:
+
+```bash
+pip install -r requirements.txt
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook playbooks/ssh_connectivity.yml -u agupta10 --ask-pass
+```
+
+Use `-u` for the shared username and `--ask-pass` to prompt once for the shared
+SSH/TACACS password, just like `collect.yml`. For unattended runs, supply
+`ansible_user` and `ansible_password` through an Ansible Vault extra-vars file
+(`-e @credentials.yml --ask-vault-pass`) instead of `-u` and `--ask-pass`.
+Use `-e csv_input=/path/to/batch.csv` for a batch.
+
+The playbook audits each device and writes its offered algorithms, strongest first,
+to `connectivity_output/ssh_configs/`. Libssh uses these per-device settings;
+old classes are attempted. Algorithms unavailable in libssh or blocked by RHEL
+crypto policy can still fail. An inconclusive assessment tries libssh defaults.
+
+Success means login **and the IOS CLI prompt** work. The test sends a newline;
+Ansible may also send terminal setup commands. It does not run the discovery command list
+or include command output in the report. A successful OpenSSH login alone does not
+guarantee this test succeeds.
+
+The repo's `ansible.cfg` enables libssh host-key auto-add and disables searching
+for private keys. New keys go to repo-local `known_hosts`; changed keys are rejected.
+Keep host-key checking enabled. Connections run one at a time (`serial: 1`).
+
+To reuse a matching saved collection assessment instead of rescanning:
+
+```bash
+ansible-playbook playbooks/ssh_connectivity.yml -u agupta10 --ask-pass -e reuse_assessment=true
+```
+
+Fresh scans are the default. Each run overwrites `connectivity_output/report.html`
+and `results.json`. Use `-e connectivity_output=/path/to/run` to retain separate
+runs. Copy the standalone HTML to Windows to view it. Results show SSH class,
+success/failure, a sanitized reason, and configured algorithms, without credentials
+or SSH transcripts. Configured algorithms are not proof of the negotiated algorithm.
